@@ -1,23 +1,55 @@
-import React, { useState, useEffect, useRef } from 'react';
-import maplibregl from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
+import React, { useState, useEffect } from 'react';
 import { 
-  Search, Navigation, MapPin, Crosshair, 
-  Monitor, Building, Home, Calendar, Info, Map as MapIcon
+  MapContainer, TileLayer, Marker, Popup, 
+  Polyline, useMap, useMapEvents 
+} from 'react-leaflet';
+import L from 'leaflet';
+import { 
+  Navigation, Map as MapIcon, Calendar, Info, 
+  MapPin, Crosshair 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 
+// Fix for default Leaflet icon issue in React
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: markerIcon2x,
+    iconUrl: markerIcon,
+    shadowUrl: markerShadow,
+});
+
 const BACKEND_URL = 'http://127.0.0.1:8000';
+const GGV_CENTER = [22.129, 82.138];
+
+// Component to handle Map Resizing and Geolocation
+function MapController({ userCoords, onLocationFound }) {
+  const map = useMap();
+  
+  useEffect(() => {
+    map.invalidateSize();
+  }, [map]);
+
+  const mapEvents = useMapEvents({
+    locationfound(e) {
+      onLocationFound(e.latlng);
+      map.flyTo(e.latlng, map.getZoom());
+    },
+  });
+
+  return null;
+}
 
 function App() {
-  const mapContainer = useRef(null);
-  const map = useRef(null);
-  const userMarker = useRef(null);
   const [locations, setLocations] = useState([]);
   const [startPoint, setStartPoint] = useState('');
   const [endPoint, setEndPoint] = useState('');
   const [userCoords, setUserCoords] = useState(null);
+  const [route, setRoute] = useState(null);
   const [events] = useState([
     { id: 1, title: 'Annual TechFest 2026', date: 'April 20-22', location: 'IT Dept' },
     { id: 2, title: 'Cultural Night', date: 'April 18', location: 'Auditorium' }
@@ -25,151 +57,88 @@ function App() {
 
   useEffect(() => {
     axios.get(`${BACKEND_URL}/locations`).then(res => setLocations(res.data));
-
-    map.current = new maplibregl.Map({
-      container: mapContainer.current,
-      style: 'https://tiles.stadiamaps.com/styles/alidade_smooth.json', 
-      center: [82.138, 22.129], 
-      zoom: 16,
-      pitch: 45,
-      bearing: 0,
-      antialias: true,
-      pixelRatio: window.devicePixelRatio || 1 // Set High Definition
-    });
-
-    map.current.on('load', () => {
-      // Add 3D Building Extrusion Layer
-      map.current.addLayer({
-        'id': '3d-buildings',
-        'source': 'maplibre-search-results', 
-        'type': 'fill-extrusion',
-        'paint': {
-          'fill-extrusion-color': '#2a2a3a',
-          'fill-extrusion-height': ['interpolate', ['linear'], ['zoom'], 15, 0, 15.05, ['get', 'height'] || 15],
-          'fill-extrusion-base': ['get', 'min_height'] || 0,
-          'fill-extrusion-opacity': 0.6
-        }
-      });
-    });
-
-    // Error fallback for tiles
-    map.current.on('error', (e) => {
-      console.warn("Map style load error, falling back to openfreemap:", e);
-      if (e.error?.status === 403 || e.error?.status === 401) {
-        map.current.setStyle('https://tiles.openfreemap.org/styles/liberty');
-      }
-    });
-
-    return () => map.current.remove();
   }, []);
 
-  useEffect(() => {
-    if (!map.current || locations.length === 0) return;
-
-    locations.forEach(loc => {
-      const el = document.createElement('div');
-      el.className = 'marker-container';
-      el.innerHTML = `<div style="background: rgba(0,210,255,0.2); border: 2px solid #00d2ff; padding: 8px; border-radius: 50%; box-shadow: 0 0 10px #00d2ff;">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00d2ff" stroke-width="2"><circle cx="12" cy="12" r="10"></circle></svg>
-                      </div>`;
-
-      new maplibregl.Marker(el)
-        .setLngLat([loc.longitude, loc.latitude])
-        .setPopup(new maplibregl.Popup({ offset: 25 }).setHTML(`<h3>${loc.name}</h3><p>${loc.description}</p>`))
-        .addTo(map.current);
-    });
-  }, [locations]);
-
-  // Handle Live Location for Blue Dot
-  useEffect(() => {
-    if (startPoint === 'current_location') {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const { longitude, latitude } = pos.coords;
-          setUserCoords({ longitude, latitude });
-          updateUserMarker(longitude, latitude);
-          map.current.flyTo({ center: [longitude, latitude], zoom: 17 });
-        },
-        (err) => console.error("Location access denied", err)
-      );
+  const handleStartPointChange = (val) => {
+    setStartPoint(val);
+    if (val === 'current_location') {
+      // Handled by MapController / map.locate() logic if needed
+      // Or just a manual trigger
     }
-  }, [startPoint]);
-
-  const updateUserMarker = (lng, lat) => {
-    if (userMarker.current) userMarker.current.remove();
-    
-    const el = document.createElement('div');
-    el.className = 'user-location-marker';
-    
-    userMarker.current = new maplibregl.Marker(el)
-      .setLngLat([lng, lat])
-      .addTo(map.current);
   };
 
   const findRoute = async () => {
     if (!startPoint || !endPoint) return;
     
-    let startLat, startLng;
-    if (startPoint === 'current_location') {
-      if (!userCoords) {
-        alert("Please wait for location to load...");
-        return;
-      }
-      startLat = userCoords.latitude;
-      startLng = userCoords.longitude;
-    }
-
     try {
       const res = await axios.post(`${BACKEND_URL}/route`, {
-        start_id: startPoint === 'current_location' ? 'main_gate' : startPoint, // Fallback to main_gate for graph logic if current
+        start_id: startPoint === 'current_location' ? 'main_gate' : startPoint,
         end_id: endPoint
       });
       
       const path = res.data.path;
-      // If using current location, prepend it to the path for visual accuracy
-      const coords = startPoint === 'current_location' 
-        ? [[userCoords.longitude, userCoords.latitude], ...path.map(p => [p.longitude, p.latitude])]
-        : path.map(p => [p.longitude, p.latitude]);
+      const coords = path.map(p => [p.latitude, p.longitude]);
       
-      drawRoute(coords);
+      if (startPoint === 'current_location' && userCoords) {
+        setRoute([[userCoords.lat, userCoords.lng], ...coords]);
+      } else {
+        setRoute(coords);
+      }
     } catch (err) {
       console.error(err);
     }
   };
 
-  const drawRoute = (coords) => {
-    if (map.current.getSource('route')) {
-      map.current.getSource('route').setData({
-        type: 'Feature',
-        geometry: { type: 'LineString', coordinates: coords }
-      });
-    } else {
-      map.current.addSource('route', {
-        type: 'geojson',
-        data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } }
-      });
-      
-      map.current.addLayer({
-        id: 'route',
-        type: 'line',
-        source: 'route',
-        layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: {
-          'line-color': '#00d2ff',
-          'line-width': 8,
-          'line-blur': 2,
-          'line-opacity': 0.9
-        }
-      });
-    }
-
-    const bounds = coords.reduce((acc, curr) => acc.extend(curr), new maplibregl.LngLatBounds(coords[0], coords[0]));
-    map.current.fitBounds(bounds, { padding: 80 });
+  const locateUser = (map) => {
+    if (map) map.locate();
   };
 
   return (
     <div className="App">
-      <div ref={mapContainer} className="map-container" />
+      <MapContainer 
+        center={GGV_CENTER} 
+        zoom={16} 
+        className="map-container"
+        zoomControl={false}
+      >
+        <TileLayer
+          attribution='Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+        />
+        
+        <MapController 
+          userCoords={userCoords} 
+          onLocationFound={(latlng) => setUserCoords(latlng)} 
+        />
+
+        {locations.map(loc => (
+          <Marker 
+            key={loc.id} 
+            position={[loc.latitude, loc.longitude]}
+          >
+            <Popup>
+              <h3 className="font-bold">{loc.name}</h3>
+              <p className="text-sm">{loc.description}</p>
+            </Popup>
+          </Marker>
+        ))}
+
+        {userCoords && (
+          <Marker position={userCoords} icon={L.divIcon({
+            className: 'user-location-marker',
+            html: '<div class="user-position-dot"></div>'
+          })}>
+            <Popup>You are here</Popup>
+          </Marker>
+        )}
+
+        {route && (
+          <Polyline 
+            positions={route} 
+            pathOptions={{ color: '#00d2ff', weight: 8, opacity: 0.8 }} 
+          />
+        )}
+      </MapContainer>
 
       {/* Sidebar Navigation */}
       <div className="sidebar glass-panel">
@@ -181,7 +150,7 @@ function App() {
         <div className="space-y-4">
           <div>
             <label>Starting Point</label>
-            <select value={startPoint} onChange={(e) => setStartPoint(e.target.value)}>
+            <select value={startPoint} onChange={(e) => handleStartPointChange(e.target.value)}>
               <option value="">Select Location</option>
               <option value="current_location">My Current Location</option>
               {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
@@ -216,13 +185,11 @@ function App() {
         </div>
       </div>
 
-      {/* Info Hover */}
+      {/* User Actions */}
       <div className="event-overlay glass-panel">
         <div className="flex items-center gap-2">
-          <Info size={16} color="#007AFF" />
-          <p className="text-xs text-gray-200">
-            {startPoint === 'current_location' ? "Tracking live position..." : "Stable campus routing active."}
-          </p>
+          <Info size={16} color="#00d2ff" />
+          <p className="text-xs text-gray-200">Satellite View Active</p>
         </div>
       </div>
     </div>

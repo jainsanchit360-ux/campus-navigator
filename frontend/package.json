@@ -12,10 +12,11 @@
   "dependencies": {
     "axios": "^1.15.0",
     "framer-motion": "^12.38.0",
+    "leaflet": "^1.9.4",
     "lucide-react": "^1.8.0",
-    "maplibre-gl": "^5.23.0",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "react-leaflet": "^5.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
