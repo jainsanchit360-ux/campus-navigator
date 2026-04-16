@@ -1,0 +1,74 @@
+[
+  {
+    "id": "main_gate",
+    "name": "University Main Gate",
+    "type": "landmark",
+    "latitude": 22.1288,
+    "longitude": 82.1377,
+    "description": "The primary entrance to the university, featuring the Guru Ghasidas Statue."
+  },
+  {
+    "id": "admin_block",
+    "name": "Administrative Building",
+    "type": "admin",
+    "latitude": 22.1302,
+    "longitude": 82.1375,
+    "description": "Central hub for university administration and the Vice Chancellor's office."
+  },
+  {
+    "id": "it_dept",
+    "name": "IT & Engineering Department",
+    "type": "academic",
+    "latitude": 22.1345,
+    "longitude": 82.1352,
+    "description": "The Institute of Technology, featuring modern labs and engineering departments."
+  },
+  {
+    "id": "pharmacy",
+    "name": "SLT Pharmaceutical Sciences",
+    "type": "academic",
+    "latitude": 22.1355,
+    "longitude": 82.1360,
+    "description": "Leading center for pharmaceutical research and education."
+  },
+  {
+    "id": "management",
+    "name": "School of Management",
+    "type": "academic",
+    "latitude": 22.1330,
+    "longitude": 82.1345,
+    "description": "Department focusing on business administration and management studies."
+  },
+  {
+    "id": "library",
+    "name": "Nalanda Central Library",
+    "type": "academic",
+    "latitude": 22.1320,
+    "longitude": 82.1372,
+    "description": "Massive central library with vast digital and physical resources."
+  },
+  {
+    "id": "auditorium",
+    "name": "Rajat Jayanti Sabhagar",
+    "type": "admin",
+    "latitude": 22.1310,
+    "longitude": 82.1385,
+    "description": "The main university auditorium for seminars and cultural events."
+  },
+  {
+    "id": "boys_hostel",
+    "name": "Swami Vivekanand Boys Hostel",
+    "type": "residential",
+    "latitude": 22.1375,
+    "longitude": 82.1395,
+    "description": "Primary on-campus residence for male students."
+  },
+  {
+    "id": "girls_hostel",
+    "name": "Bilasa Devi Girls Hostel",
+    "type": "residential",
+    "latitude": 22.1385,
+    "longitude": 82.1378,
+    "description": "Modern residential facility for female students."
+  }
+]
