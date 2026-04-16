@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   MapContainer, TileLayer, Marker, Popup, 
   Polyline, useMap, useMapEvents 
@@ -6,12 +6,12 @@ import {
 import L from 'leaflet';
 import { 
   Navigation, Map as MapIcon, Calendar, Info, 
-  MapPin, Crosshair, Target
+  MapPin, Crosshair, Target, Activity
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 
-// Fix for default Leaflet icon issue in React
+// Fix for default Leaflet icon issue
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
@@ -26,21 +26,9 @@ L.Icon.Default.mergeOptions({
 const BACKEND_URL = 'http://127.0.0.1:8000';
 const GGV_CENTER = [22.129, 82.138];
 
-// Component to handle Map Actions (Locate, FlyTo)
 function MapActions({ onLocationFound }) {
   const map = useMap();
-  
-  useEffect(() => {
-    map.invalidateSize();
-  }, [map]);
-
-  useMapEvents({
-    locationfound(e) {
-      onLocationFound(e.latlng);
-      map.flyTo(e.latlng, 18);
-    },
-  });
-
+  useEffect(() => { map.invalidateSize(); }, [map]);
   return null;
 }
 
@@ -51,6 +39,8 @@ function App() {
   const [userCoords, setUserCoords] = useState(null);
   const [route, setRoute] = useState(null);
   const [mapInstance, setMapInstance] = useState(null);
+  const watchId = useRef(null);
+
   const [events] = useState([
     { id: 1, title: 'Annual TechFest 2026', date: 'April 20-22', location: 'IT Dept' },
     { id: 2, title: 'Cultural Night', date: 'April 18', location: 'Auditorium' }
@@ -58,32 +48,59 @@ function App() {
 
   useEffect(() => {
     axios.get(`${BACKEND_URL}/locations`).then(res => setLocations(res.data));
+    
+    // Start watching position in real-time
+    if ("geolocation" in navigator) {
+      watchId.current = navigator.geolocation.watchPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          setUserCoords({ lat: latitude, lng: longitude });
+          console.log("Location Updated:", latitude, longitude);
+        },
+        (err) => console.error(err),
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
+    }
+
+    return () => {
+      if (watchId.current) navigator.geolocation.clearWatch(watchId.current);
+    };
   }, []);
 
   const findRoute = async () => {
     if (!startPoint || !endPoint) return;
     
+    const requestData = {
+      start_id: startPoint,
+      end_id: endPoint
+    };
+
+    if (startPoint === 'current_location') {
+      if (!userCoords) {
+        alert("Waiting for GPS signal...");
+        return;
+      }
+      requestData.start_coords = [userCoords.lat, userCoords.lng];
+    }
+
     try {
-      const res = await axios.post(`${BACKEND_URL}/route`, {
-        start_id: startPoint === 'current_location' ? 'main_gate' : startPoint,
-        end_id: endPoint
-      });
+      const res = await axios.post(`${BACKEND_URL}/route`, requestData);
+      setRoute(res.data.path);
       
-      const path = res.data.path;
-      const coords = path.map(p => [p.latitude, p.longitude]);
-      
-      if (startPoint === 'current_location' && userCoords) {
-        setRoute([[userCoords.lat, userCoords.lng], ...coords]);
-      } else {
-        setRoute(coords);
+      // Auto-zoom to fit route
+      if (mapInstance && res.data.path.length > 0) {
+        mapInstance.fitBounds(res.data.path, { padding: [50, 50] });
       }
     } catch (err) {
       console.error(err);
+      alert("Error finding road route. Campus data might be incomplete for OSRM.");
     }
   };
 
-  const handleLocateMe = () => {
-    if (mapInstance) mapInstance.locate();
+  const handleFindMe = () => {
+    if (userCoords && mapInstance) {
+      mapInstance.flyTo([userCoords.lat, userCoords.lng], 18);
+    }
   };
 
   return (
@@ -102,101 +119,102 @@ function App() {
           maxZoom={20}
         />
         
-        <MapActions onLocationFound={(latlng) => setUserCoords(latlng)} />
+        <MapActions onLocationFound={() => {}} />
 
         {locations.map(loc => (
-          <Marker 
-            key={loc.id} 
-            position={[loc.latitude, loc.longitude]}
-          >
+          <Marker key={loc.id} position={[loc.latitude, loc.longitude]}>
             <Popup>
-              <div className="p-1">
-                <h3 className="font-bold text-lg">{loc.name}</h3>
-                <p className="text-sm text-gray-600">{loc.description}</p>
+              <div className="p-2">
+                <h3 className="font-bold text-lg text-blue-600">{loc.name}</h3>
+                <p className="text-sm text-gray-700">{loc.description}</p>
               </div>
             </Popup>
           </Marker>
         ))}
 
         {userCoords && (
-          <Marker position={userCoords} icon={L.divIcon({
-            className: 'user-location-marker',
-            html: '<div class="user-position-dot"></div>'
-          })}>
-            <Popup>Current Position</Popup>
+          <Marker 
+            position={[userCoords.lat, userCoords.lng]} 
+            icon={L.divIcon({
+              className: 'user-location-marker',
+              html: '<div class="user-position-dot"></div>'
+            })}
+          >
+            <Popup>You are here (Live Tracked)</Popup>
           </Marker>
         )}
 
         {route && (
           <Polyline 
             positions={route} 
-            pathOptions={{ color: '#00d2ff', weight: 10, opacity: 0.9 }} 
+            pathOptions={{ color: '#00d2ff', weight: 8, opacity: 0.9, lineJoin: 'round' }} 
           />
         )}
       </MapContainer>
 
-      {/* Sidebar Navigation */}
-      <div className="sidebar glass-panel">
+      {/* Sidebar UI */}
+      <div className="sidebar glass-panel shadow-2xl">
         <div className="flex items-center gap-3 mb-6">
-          <MapIcon color="#00d2ff" size={32} />
-          <h1 className="text-2xl font-bold tracking-tight">GGV NAV</h1>
+          <motion.div animate={{ rotate: 360 }} transition={{ duration: 10, repeat: Infinity, ease: "linear" }}>
+            <Activity color="#00d2ff" size={32} />
+          </motion.div>
+          <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
+            GGV LIVE
+          </h1>
         </div>
 
         <div className="space-y-5">
           <div>
-            <label>Start Point</label>
-            <select value={startPoint} onChange={(e) => setStartPoint(e.target.value)}>
-              <option value="">Select Origin</option>
-              <option value="current_location">📍 My Current Location</option>
+            <label className="text-xs uppercase font-bold text-blue-400">Where are you?</label>
+            <select className="mt-1" value={startPoint} onChange={(e) => setStartPoint(e.target.value)}>
+              <option value="">Choose Origin</option>
+              <option value="current_location">📍 Live Location (Active)</option>
               {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
             </select>
           </div>
 
           <div>
-            <label>Destination</label>
-            <select value={endPoint} onChange={(e) => setEndPoint(e.target.value)}>
-              <option value="">Select Destination</option>
+            <label className="text-xs uppercase font-bold text-blue-400">Destination</label>
+            <select className="mt-1" value={endPoint} onChange={(e) => setEndPoint(e.target.value)}>
+              <option value="">Go to...</option>
               {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
             </select>
           </div>
 
-          <button className="route-btn shadow-lg" onClick={findRoute}>
-            Find Campus Route
+          <button className="route-btn transform active:scale-95 transition-all" onClick={findRoute}>
+            NAVIGATE ON ROAD
           </button>
         </div>
 
+        {/* Live News */}
         <div className="mt-10">
-          <label>Ongoing Events</label>
-          <div className="space-y-4 mt-3">
+          <label className="text-xs uppercase font-bold text-blue-400">Campus Pulse</label>
+          <div className="space-y-3 mt-3">
             {events.map(ev => (
-              <div key={ev.id} className="p-4 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 transition-all cursor-default">
-                <div className="flex items-center gap-2 mb-2">
-                  <Calendar size={14} color="#00d2ff" />
-                  <span className="text-xs font-semibold text-gray-400 uppercase">{ev.date}</span>
+              <div key={ev.id} className="p-3 bg-white/5 rounded-xl border border-white/10 hover:border-blue-500/50 transition-all">
+                <div className="flex items-center gap-2 mb-1">
+                  <Calendar size={12} color="#00d2ff" />
+                  <span className="text-[10px] font-bold text-gray-400 uppercase">{ev.date}</span>
                 </div>
-                <h3 className="text-md font-bold">{ev.title}</h3>
-                <p className="text-xs text-blue-400 mt-1 uppercase tracking-widest">{ev.location}</p>
+                <h3 className="text-sm font-bold text-white">{ev.title}</h3>
+                <p className="text-[10px] text-blue-400/80 font-medium uppercase">{ev.location}</p>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Find Me Button */}
-      <button 
-        className="locate-btn glass-panel flex flex-col gap-1 text-[10px] font-bold" 
-        onClick={handleLocateMe}
-        style={{ bottom: '40px', right: '20px', width: '60px', height: '60px' }}
-      >
-        <Target size={24} color="#00d2ff" />
-        FIND ME
-      </button>
+      {/* Modern Control HUD */}
+      <div className="fixed bottom-8 right-8 flex flex-col gap-3 z-[1000]">
+        <button className="locate-btn glass-panel w-14 h-14" onClick={handleFindMe}>
+          <Target size={28} color="#00d2ff" />
+        </button>
+      </div>
 
-      {/* Tech Status */}
-      <div className="event-overlay glass-panel">
+      <div className="event-overlay glass-panel py-2 px-4">
         <div className="flex items-center gap-2">
-          <Info size={16} color="#00d2ff" />
-          <p className="text-xs font-medium text-gray-200 uppercase tracking-tighter">Google Hybrid View (Free)</p>
+          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+          <p className="text-[10px] font-bold text-white uppercase tracking-widest">OSRM ROAD NETWORK READY</p>
         </div>
       </div>
     </div>

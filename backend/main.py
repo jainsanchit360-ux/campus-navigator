@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import networkx as nx
+import requests
 import json
 import os
 
@@ -19,32 +19,11 @@ LOCATIONS_PATH = os.path.join(os.path.dirname(__file__), "..", "locations.json")
 with open(LOCATIONS_PATH, "r") as f:
     locations = json.load(f)
 
-# Create expanded Graph
-G = nx.Graph()
-for loc in locations:
-    G.add_node(loc["id"], pos=(loc["latitude"], loc["longitude"]), name=loc["name"])
-
-# Expanded connections representing campus pathways
-connections = [
-    ("main_gate", "admin_block"),
-    ("admin_block", "auditorium"),
-    ("admin_block", "library"),
-    ("admin_block", "management"),
-    ("library", "it_dept"),
-    ("it_dept", "pharmacy"),
-    ("it_dept", "boys_hostel"),
-    ("pharmacy", "girls_hostel"),
-    ("management", "it_dept"),
-    ("auditorium", "library"),
-    ("girls_hostel", "boys_hostel"), 
-    ("library", "management")
-]
-
-G.add_edges_from(connections)
-
 class RouteRequest(BaseModel):
     start_id: str
     end_id: str
+    # New: Add support for raw coordinates if starting from current_location
+    start_coords: list[float] = None # [lat, lng]
 
 @app.get("/locations")
 async def get_locations():
@@ -52,22 +31,44 @@ async def get_locations():
 
 @app.post("/route")
 async def get_route(request: RouteRequest):
-    if request.start_id not in G or request.end_id not in G:
-        raise HTTPException(status_code=404, detail="Location not found")
+    # Determine start coordinates
+    if request.start_coords:
+        start_lat, start_lng = request.start_coords
+    else:
+        start_node = next((l for l in locations if l["id"] == request.start_id), None)
+        if not start_node:
+            raise HTTPException(status_code=404, detail="Start location not found")
+        start_lat, start_lng = start_node["latitude"], start_node["longitude"]
+
+    # Determine end coordinates
+    end_node = next((l for l in locations if l["id"] == request.end_id), None)
+    if not end_node:
+        raise HTTPException(status_code=404, detail="End location not found")
+    end_lat, end_lng = end_node["latitude"], end_node["longitude"]
+
+    # Call OSRM API for road-based routing
+    # OSRM uses {lng},{lat} format
+    osrm_url = f"http://router.project-osrm.org/route/v1/foot/{start_lng},{start_lat};{end_lng},{end_lat}?overview=full&geometries=geojson"
     
     try:
-        path = nx.shortest_path(G, source=request.start_id, target=request.end_id)
-        path_coords = []
-        for node_id in path:
-            node = next(l for l in locations if l["id"] == node_id)
-            path_coords.append({
-                "latitude": node["latitude"],
-                "longitude": node["longitude"],
-                "name": node["name"]
-            })
-        return {"path": path_coords}
-    except nx.NetworkXNoPath:
-        raise HTTPException(status_code=404, detail="No path found")
+        response = requests.get(osrm_url)
+        data = response.json()
+        
+        if data["code"] != "Ok":
+            raise HTTPException(status_code=400, detail="Could not calculate road-based route")
+            
+        # Extract waypoints from GeoJSON
+        route_geojson = data["routes"][0]["geometry"]
+        # Convert [lng, lat] to [lat, lng] for Leaflet
+        waypoints = [[coord[1], coord[0]] for coord in route_geojson["coordinates"]]
+        
+        return {
+            "path": waypoints,
+            "distance": data["routes"][0]["distance"],
+            "duration": data["routes"][0]["duration"]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
