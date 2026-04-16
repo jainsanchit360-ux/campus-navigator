@@ -3,26 +3,21 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { 
   Search, Navigation, MapPin, Crosshair, 
-  Book, Monitor, Building, Home, Calendar, Info
+  Monitor, Building, Home, Calendar, Info, Map as MapIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 
 const BACKEND_URL = 'http://127.0.0.1:8000';
 
-const ICON_MAP = {
-  academic: Monitor,
-  admin: Building,
-  residential: Home,
-  landmark: MapPin
-};
-
 function App() {
   const mapContainer = useRef(null);
   const map = useRef(null);
+  const userMarker = useRef(null);
   const [locations, setLocations] = useState([]);
   const [startPoint, setStartPoint] = useState('');
   const [endPoint, setEndPoint] = useState('');
+  const [userCoords, setUserCoords] = useState(null);
   const [events] = useState([
     { id: 1, title: 'Annual TechFest 2026', date: 'April 20-22', location: 'IT Dept' },
     { id: 2, title: 'Cultural Night', date: 'April 18', location: 'Auditorium' }
@@ -33,27 +28,36 @@ function App() {
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: 'https://demotiles.maplibre.org/style.json', // Basic OSM style
-      center: [82.1375, 22.1311], 
-      zoom: 15.5,
-      pitch: 50,
-      bearing: -15,
-      antialias: true
+      style: 'https://tiles.stadiamaps.com/styles/alidade_smooth.json', 
+      center: [82.138, 22.129], 
+      zoom: 16,
+      pitch: 45,
+      bearing: 0,
+      antialias: true,
+      pixelRatio: window.devicePixelRatio || 1 // Set High Definition
     });
 
     map.current.on('load', () => {
       // Add 3D Building Extrusion Layer
       map.current.addLayer({
         'id': '3d-buildings',
-        'source': 'maplibre-search-results', // We use OSM data if available, but for now we extrude locations
+        'source': 'maplibre-search-results', 
         'type': 'fill-extrusion',
         'paint': {
           'fill-extrusion-color': '#2a2a3a',
-          'fill-extrusion-height': 20,
-          'fill-extrusion-base': 0,
+          'fill-extrusion-height': ['interpolate', ['linear'], ['zoom'], 15, 0, 15.05, ['get', 'height'] || 15],
+          'fill-extrusion-base': ['get', 'min_height'] || 0,
           'fill-extrusion-opacity': 0.6
         }
       });
+    });
+
+    // Error fallback for tiles
+    map.current.on('error', (e) => {
+      console.warn("Map style load error, falling back to openfreemap:", e);
+      if (e.error?.status === 403 || e.error?.status === 401) {
+        map.current.setStyle('https://tiles.openfreemap.org/styles/liberty');
+      }
     });
 
     return () => map.current.remove();
@@ -76,60 +80,91 @@ function App() {
     });
   }, [locations]);
 
+  // Handle Live Location for Blue Dot
+  useEffect(() => {
+    if (startPoint === 'current_location') {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { longitude, latitude } = pos.coords;
+          setUserCoords({ longitude, latitude });
+          updateUserMarker(longitude, latitude);
+          map.current.flyTo({ center: [longitude, latitude], zoom: 17 });
+        },
+        (err) => console.error("Location access denied", err)
+      );
+    }
+  }, [startPoint]);
+
+  const updateUserMarker = (lng, lat) => {
+    if (userMarker.current) userMarker.current.remove();
+    
+    const el = document.createElement('div');
+    el.className = 'user-location-marker';
+    
+    userMarker.current = new maplibregl.Marker(el)
+      .setLngLat([lng, lat])
+      .addTo(map.current);
+  };
+
   const findRoute = async () => {
     if (!startPoint || !endPoint) return;
     
+    let startLat, startLng;
+    if (startPoint === 'current_location') {
+      if (!userCoords) {
+        alert("Please wait for location to load...");
+        return;
+      }
+      startLat = userCoords.latitude;
+      startLng = userCoords.longitude;
+    }
+
     try {
       const res = await axios.post(`${BACKEND_URL}/route`, {
-        start_id: startPoint,
+        start_id: startPoint === 'current_location' ? 'main_gate' : startPoint, // Fallback to main_gate for graph logic if current
         end_id: endPoint
       });
       
-      const coords = res.data.path.map(p => [p.longitude, p.latitude]);
+      const path = res.data.path;
+      // If using current location, prepend it to the path for visual accuracy
+      const coords = startPoint === 'current_location' 
+        ? [[userCoords.longitude, userCoords.latitude], ...path.map(p => [p.longitude, p.latitude])]
+        : path.map(p => [p.longitude, p.latitude]);
       
-      if (map.current.getSource('route')) {
-        map.current.getSource('route').setData({
-          type: 'Feature',
-          geometry: { type: 'LineString', coordinates: coords }
-        });
-      } else {
-        map.current.addSource('route', {
-          type: 'geojson',
-          data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } }
-        });
-        
-        map.current.addLayer({
-          id: 'route',
-          type: 'line',
-          source: 'route',
-          layout: { 'line-join': 'round', 'line-cap': 'round' },
-          paint: {
-            'line-color': '#00d2ff',
-            'line-width': 8,
-            'line-blur': 4,
-            'line-opacity': 0.8
-          }
-        });
-      }
-
-      // Fly to bounds
-      const bounds = coords.reduce((acc, curr) => acc.extend(curr), new maplibregl.LngLatBounds(coords[0], coords[0]));
-      map.current.fitBounds(bounds, { padding: 50 });
-
+      drawRoute(coords);
     } catch (err) {
       console.error(err);
     }
   };
 
-  const locateMe = () => {
-    navigator.geolocation.getCurrentPosition((pos) => {
-      const { longitude, latitude } = pos.coords;
-      map.current.flyTo({ center: [longitude, latitude], zoom: 17 });
+  const drawRoute = (coords) => {
+    if (map.current.getSource('route')) {
+      map.current.getSource('route').setData({
+        type: 'Feature',
+        geometry: { type: 'LineString', coordinates: coords }
+      });
+    } else {
+      map.current.addSource('route', {
+        type: 'geojson',
+        data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } }
+      });
       
-      new maplibregl.Marker({ color: '#ff0000' })
-        .setLngLat([longitude, latitude])
-        .addTo(map.current);
-    });
+      map.current.addLayer({
+        id: 'route',
+        type: 'line',
+        source: 'route',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#00d2ff',
+          'line-width': 8,
+          'line-blur': 2,
+          'line-opacity': 0.9
+        }
+      });
+    }
+
+    const bounds = coords.reduce((acc, curr) => acc.extend(curr), new maplibregl.LngLatBounds(coords[0], coords[0]));
+    map.current.fitBounds(bounds, { padding: 80 });
   };
 
   return (
@@ -139,7 +174,7 @@ function App() {
       {/* Sidebar Navigation */}
       <div className="sidebar glass-panel">
         <div className="flex items-center gap-3 mb-4">
-          <Navigation color="#00d2ff" fill="#00d2ff" />
+          <MapIcon color="#00d2ff" size={28} />
           <h1 className="text-xl font-bold tracking-tight">GGV NAV</h1>
         </div>
 
@@ -148,6 +183,7 @@ function App() {
             <label>Starting Point</label>
             <select value={startPoint} onChange={(e) => setStartPoint(e.target.value)}>
               <option value="">Select Location</option>
+              <option value="current_location">My Current Location</option>
               {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
             </select>
           </div>
@@ -180,16 +216,13 @@ function App() {
         </div>
       </div>
 
-      {/* Locate Me Button */}
-      <button className="locate-btn glass-panel" onClick={locateMe}>
-        <Crosshair size={24} color="#00d2ff" />
-      </button>
-
       {/* Info Hover */}
       <div className="event-overlay glass-panel">
         <div className="flex items-center gap-2">
-          <Info size={16} color="#00d2ff" />
-          <p className="text-xs text-gray-200">Campus is active. Standard routing is available.</p>
+          <Info size={16} color="#007AFF" />
+          <p className="text-xs text-gray-200">
+            {startPoint === 'current_location' ? "Tracking live position..." : "Stable campus routing active."}
+          </p>
         </div>
       </div>
     </div>
