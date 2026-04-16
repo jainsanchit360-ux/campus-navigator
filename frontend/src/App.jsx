@@ -6,7 +6,7 @@ import {
 import L from 'leaflet';
 import { 
   Navigation, Map as MapIcon, Calendar, Info, 
-  MapPin, Crosshair 
+  MapPin, Crosshair, Target
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -26,18 +26,18 @@ L.Icon.Default.mergeOptions({
 const BACKEND_URL = 'http://127.0.0.1:8000';
 const GGV_CENTER = [22.129, 82.138];
 
-// Component to handle Map Resizing and Geolocation
-function MapController({ userCoords, onLocationFound }) {
+// Component to handle Map Actions (Locate, FlyTo)
+function MapActions({ onLocationFound }) {
   const map = useMap();
   
   useEffect(() => {
     map.invalidateSize();
   }, [map]);
 
-  const mapEvents = useMapEvents({
+  useMapEvents({
     locationfound(e) {
       onLocationFound(e.latlng);
-      map.flyTo(e.latlng, map.getZoom());
+      map.flyTo(e.latlng, 18);
     },
   });
 
@@ -50,6 +50,7 @@ function App() {
   const [endPoint, setEndPoint] = useState('');
   const [userCoords, setUserCoords] = useState(null);
   const [route, setRoute] = useState(null);
+  const [mapInstance, setMapInstance] = useState(null);
   const [events] = useState([
     { id: 1, title: 'Annual TechFest 2026', date: 'April 20-22', location: 'IT Dept' },
     { id: 2, title: 'Cultural Night', date: 'April 18', location: 'Auditorium' }
@@ -58,14 +59,6 @@ function App() {
   useEffect(() => {
     axios.get(`${BACKEND_URL}/locations`).then(res => setLocations(res.data));
   }, []);
-
-  const handleStartPointChange = (val) => {
-    setStartPoint(val);
-    if (val === 'current_location') {
-      // Handled by MapController / map.locate() logic if needed
-      // Or just a manual trigger
-    }
-  };
 
   const findRoute = async () => {
     if (!startPoint || !endPoint) return;
@@ -89,8 +82,8 @@ function App() {
     }
   };
 
-  const locateUser = (map) => {
-    if (map) map.locate();
+  const handleLocateMe = () => {
+    if (mapInstance) mapInstance.locate();
   };
 
   return (
@@ -100,16 +93,16 @@ function App() {
         zoom={16} 
         className="map-container"
         zoomControl={false}
+        ref={setMapInstance}
       >
         <TileLayer
-          attribution='Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
-          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+          attribution='&copy; Google Maps'
+          url="https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}"
+          subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+          maxZoom={20}
         />
         
-        <MapController 
-          userCoords={userCoords} 
-          onLocationFound={(latlng) => setUserCoords(latlng)} 
-        />
+        <MapActions onLocationFound={(latlng) => setUserCoords(latlng)} />
 
         {locations.map(loc => (
           <Marker 
@@ -117,8 +110,10 @@ function App() {
             position={[loc.latitude, loc.longitude]}
           >
             <Popup>
-              <h3 className="font-bold">{loc.name}</h3>
-              <p className="text-sm">{loc.description}</p>
+              <div className="p-1">
+                <h3 className="font-bold text-lg">{loc.name}</h3>
+                <p className="text-sm text-gray-600">{loc.description}</p>
+              </div>
             </Popup>
           </Marker>
         ))}
@@ -128,31 +123,31 @@ function App() {
             className: 'user-location-marker',
             html: '<div class="user-position-dot"></div>'
           })}>
-            <Popup>You are here</Popup>
+            <Popup>Current Position</Popup>
           </Marker>
         )}
 
         {route && (
           <Polyline 
             positions={route} 
-            pathOptions={{ color: '#00d2ff', weight: 8, opacity: 0.8 }} 
+            pathOptions={{ color: '#00d2ff', weight: 10, opacity: 0.9 }} 
           />
         )}
       </MapContainer>
 
       {/* Sidebar Navigation */}
       <div className="sidebar glass-panel">
-        <div className="flex items-center gap-3 mb-4">
-          <MapIcon color="#00d2ff" size={28} />
-          <h1 className="text-xl font-bold tracking-tight">GGV NAV</h1>
+        <div className="flex items-center gap-3 mb-6">
+          <MapIcon color="#00d2ff" size={32} />
+          <h1 className="text-2xl font-bold tracking-tight">GGV NAV</h1>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-5">
           <div>
-            <label>Starting Point</label>
-            <select value={startPoint} onChange={(e) => handleStartPointChange(e.target.value)}>
-              <option value="">Select Location</option>
-              <option value="current_location">My Current Location</option>
+            <label>Start Point</label>
+            <select value={startPoint} onChange={(e) => setStartPoint(e.target.value)}>
+              <option value="">Select Origin</option>
+              <option value="current_location">📍 My Current Location</option>
               {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
             </select>
           </div>
@@ -165,31 +160,43 @@ function App() {
             </select>
           </div>
 
-          <button className="route-btn" onClick={findRoute}>Find Route</button>
+          <button className="route-btn shadow-lg" onClick={findRoute}>
+            Find Campus Route
+          </button>
         </div>
 
-        <div className="mt-8">
-          <label>Campus News</label>
-          <div className="space-y-3 mt-2">
+        <div className="mt-10">
+          <label>Ongoing Events</label>
+          <div className="space-y-4 mt-3">
             {events.map(ev => (
-              <div key={ev.id} className="p-3 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-colors">
-                <div className="flex items-center gap-2 mb-1">
+              <div key={ev.id} className="p-4 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 transition-all cursor-default">
+                <div className="flex items-center gap-2 mb-2">
                   <Calendar size={14} color="#00d2ff" />
-                  <span className="text-xs font-medium text-gray-400">{ev.date}</span>
+                  <span className="text-xs font-semibold text-gray-400 uppercase">{ev.date}</span>
                 </div>
-                <h3 className="text-sm font-semibold">{ev.title}</h3>
-                <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-wider">{ev.location}</p>
+                <h3 className="text-md font-bold">{ev.title}</h3>
+                <p className="text-xs text-blue-400 mt-1 uppercase tracking-widest">{ev.location}</p>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* User Actions */}
+      {/* Find Me Button */}
+      <button 
+        className="locate-btn glass-panel flex flex-col gap-1 text-[10px] font-bold" 
+        onClick={handleLocateMe}
+        style={{ bottom: '40px', right: '20px', width: '60px', height: '60px' }}
+      >
+        <Target size={24} color="#00d2ff" />
+        FIND ME
+      </button>
+
+      {/* Tech Status */}
       <div className="event-overlay glass-panel">
         <div className="flex items-center gap-2">
           <Info size={16} color="#00d2ff" />
-          <p className="text-xs text-gray-200">Satellite View Active</p>
+          <p className="text-xs font-medium text-gray-200 uppercase tracking-tighter">Google Hybrid View (Free)</p>
         </div>
       </div>
     </div>
