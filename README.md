@@ -1,29 +1,61 @@
 # GGV Campus Navigator
 
-A full-stack campus navigation system for Guru Ghasidas Vishwavidyalaya (GGV) built with a futuristic 3D UI.
+A premium, high-performance campus navigation system for Guru Ghasidas Vishwavidyalaya (GGV) designed with a modern, glassmorphic user interface.
 
-## Tech Stack
-- **Frontend**: Vite + React + Mapbox GL JS + Framer Motion
-- **Backend**: Python FastAPI + NetworkX (Routing)
-- **UI Design**: Futuristic Glassmorphism
+## 🚀 Features
 
-## Features
-- **3D Interactive Map**: Explore the GGV campus in 3D using Mapbox navigation-night style.
-- **Intelligent Routing**: Get the shortest path between buildings (e.g., Main Gate to Engineering).
-- **Glassmorphism UI**: Premium, translucent "floating" panels for a startup-grade feel.
-- **Search**: Quickly find departments and landmarks.
+- **Interactive Satellite Map**: Explore the GGV campus with high-resolution satellite imagery.
+- **Intelligent Routing**: Real-time pathfinding between 21+ campus buildings and landmarks.
+- **Live Location Tracking**: Track your current position on campus for seamless navigation.
+- **Glassmorphism UI**: A futuristic, translucent interface with smooth animations and responsive design.
+- **Comprehensive Locations**: Updated database of departments, hostels, and key landmarks.
 
-## Setup
+## 🛠️ Tech Stack
 
-### Backend
-1. `cd backend`
-2. `pip install -r requirements.txt`
-3. `python main.py`
+- **Frontend**: Vite + React + Leaflet + Framer Motion + Lucide Icons
+- **Backend**: Python (FastAPI) + OSRM (Road-based Routing)
+- **Styling**: Vanilla CSS with Modern Glassmorphism effects
 
-### Frontend
-1. `cd frontend`
-2. `npm install`
-3. `npm run dev`
+## 📦 Installation & Setup
 
-## GitHub Sync
-This project was built via the Antigravity Agent.
+### Prerequisites
+- Node.js (v16+)
+- Python 3.8+
+
+### Backend Setup
+1. Navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Run the API server:
+   ```bash
+   python main.py
+   ```
+
+### Frontend Setup
+1. Navigate to the frontend directory:
+   ```bash
+   cd frontend
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+## 🗺️ Campus Locations
+The navigator includes 21+ accurately mapped locations:
+- **Departments**: IT, Pharmacy, IP, Civil, Physics, Botany, Forest, Commerce.
+- **Administrative**: Administrative Block, Central Library, Auditorium.
+- **Residential**: Swami Vivekanand, Veer Savarkar, SvNS, Br Ambedkar, Raj Mohini (Girls) Hostels.
+- **Social**: GGV Cafeteria, University Gym, Br. Ambedkar Plaza.
+
+## 📄 License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

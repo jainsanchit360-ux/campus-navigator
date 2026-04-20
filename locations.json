@@ -1,74 +1,170 @@
 [
   {
-    "id": "main_gate",
-    "name": "University Main Gate",
+    "id": "ggv_main_gate",
+    "name": "GGV Main gate",
     "type": "landmark",
-    "latitude": 22.1288,
-    "longitude": 82.1377,
-    "description": "The primary entrance to the university, featuring the Guru Ghasidas Statue."
-  },
-  {
-    "id": "admin_block",
-    "name": "Administrative Building",
-    "type": "admin",
-    "latitude": 22.1302,
-    "longitude": 82.1375,
-    "description": "Central hub for university administration and the Vice Chancellor's office."
-  },
-  {
-    "id": "it_dept",
-    "name": "IT & Engineering Department",
-    "type": "academic",
-    "latitude": 22.1345,
-    "longitude": 82.1352,
-    "description": "The Institute of Technology, featuring modern labs and engineering departments."
-  },
-  {
-    "id": "pharmacy",
-    "name": "SLT Pharmaceutical Sciences",
-    "type": "academic",
-    "latitude": 22.1355,
-    "longitude": 82.1360,
-    "description": "Leading center for pharmaceutical research and education."
-  },
-  {
-    "id": "management",
-    "name": "School of Management",
-    "type": "academic",
-    "latitude": 22.1330,
-    "longitude": 82.1345,
-    "description": "Department focusing on business administration and management studies."
-  },
-  {
-    "id": "library",
-    "name": "Nalanda Central Library",
-    "type": "academic",
-    "latitude": 22.1320,
-    "longitude": 82.1372,
-    "description": "Massive central library with vast digital and physical resources."
+    "latitude": 22.125060,
+    "longitude": 82.134620,
+    "description": "Primary entrance to the university campus."
   },
   {
     "id": "auditorium",
-    "name": "Rajat Jayanti Sabhagar",
+    "name": "Auditorium",
     "type": "admin",
-    "latitude": 22.1310,
-    "longitude": 82.1385,
-    "description": "The main university auditorium for seminars and cultural events."
+    "latitude": 22.128865,
+    "longitude": 82.137314,
+    "description": "Main university auditorium for events and seminars."
   },
   {
-    "id": "boys_hostel",
-    "name": "Swami Vivekanand Boys Hostel",
-    "type": "residential",
-    "latitude": 22.1375,
-    "longitude": 82.1395,
-    "description": "Primary on-campus residence for male students."
+    "id": "physics_dept",
+    "name": "Physics Department",
+    "type": "academic",
+    "latitude": 22.129093,
+    "longitude": 82.138606,
+    "description": "Department of Physics, SoS Physical Sciences."
   },
   {
-    "id": "girls_hostel",
-    "name": "Bilasa Devi Girls Hostel",
+    "id": "admin_block",
+    "name": "Administrative Block",
+    "type": "admin",
+    "latitude": 22.127580,
+    "longitude": 82.137586,
+    "description": "Central administrative office of the university."
+  },
+  {
+    "id": "botony_dept",
+    "name": "Department of Botony",
+    "type": "academic",
+    "latitude": 22.127784,
+    "longitude": 82.138936,
+    "description": "Department of Botany, SoS Life Sciences."
+  },
+  {
+    "id": "forest_dept",
+    "name": "Department of Forest",
+    "type": "academic",
+    "latitude": 22.126425,
+    "longitude": 82.138769,
+    "description": "Department of Forestry, Wildlife & Environmental Sciences."
+  },
+  {
+    "id": "cafeteria",
+    "name": "GGV Cafeteria",
+    "type": "landmark",
+    "latitude": 22.128814,
+    "longitude": 82.136725,
+    "description": "University cafeteria and refreshment center."
+  },
+  {
+    "id": "gym",
+    "name": "University Gym",
+    "type": "landmark",
+    "latitude": 22.129773,
+    "longitude": 82.134026,
+    "description": "University health and fitness center."
+  },
+  {
+    "id": "vivekanand_hostel",
+    "name": "Swami Vivekanand Hostel",
     "type": "residential",
-    "latitude": 22.1385,
-    "longitude": 82.1378,
-    "description": "Modern residential facility for female students."
+    "latitude": 22.131555,
+    "longitude": 82.134211,
+    "description": "Boys residential hostel."
+  },
+  {
+    "id": "it_dept",
+    "name": "IT Department",
+    "type": "academic",
+    "latitude": 22.131599,
+    "longitude": 82.142260,
+    "description": "Department of Information Technology, SoS E&T."
+  },
+  {
+    "id": "pharmacy_dept",
+    "name": "Pharmacy Department",
+    "type": "academic",
+    "latitude": 22.131521,
+    "longitude": 82.141048,
+    "description": "Department of Pharmaceutical Sciences."
+  },
+  {
+    "id": "ip_dept",
+    "name": "IP Department",
+    "type": "academic",
+    "latitude": 22.131829,
+    "longitude": 82.143352,
+    "description": "Department of Industrial and Production Engineering."
+  },
+  {
+    "id": "civil_dept",
+    "name": "Civil Department",
+    "type": "academic",
+    "latitude": 22.132933,
+    "longitude": 82.142258,
+    "description": "Department of Civil Engineering."
+  },
+  {
+    "id": "commerce_dept",
+    "name": "Commerce Department",
+    "type": "academic",
+    "latitude": 22.133134,
+    "longitude": 82.144889,
+    "description": "Department of Commerce and Management."
+  },
+  {
+    "id": "arts_social_science",
+    "name": "Arts And Social Science",
+    "type": "academic",
+    "latitude": 22.132786,
+    "longitude": 82.145243,
+    "description": "School of Arts and Social Sciences."
+  },
+  {
+    "id": "br_ambedkar",
+    "name": "Br. Ambedkar",
+    "type": "landmark",
+    "latitude": 22.138228,
+    "longitude": 82.142762,
+    "description": "Dr. B.R. Ambedkar sculpture and plaza."
+  },
+  {
+    "id": "savarkar_hostel",
+    "name": "VEER Savarkar Boys Hostel",
+    "type": "residential",
+    "latitude": 22.137816,
+    "longitude": 82.142827,
+    "description": "Veer Savarkar Boys residential hostel."
+  },
+  {
+    "id": "svns_hostel",
+    "name": "SvNS Boys Hostel",
+    "type": "residential",
+    "latitude": 22.137816,
+    "longitude": 82.142827,
+    "description": "SvNS Boys residential hostel."
+  },
+  {
+    "id": "ambedkar_hostel",
+    "name": "Br Ambedkar Boys Hostel",
+    "type": "residential",
+    "latitude": 22.138394,
+    "longitude": 82.143767,
+    "description": "Dr. B.R. Ambedkar Boys residential hostel."
+  },
+  {
+    "id": "central_library",
+    "name": "Central Library",
+    "type": "academic",
+    "latitude": 22.130127,
+    "longitude": 82.139899,
+    "description": "The Nalanda Central Library."
+  },
+  {
+    "id": "raj_mohini_hostel",
+    "name": "Raj Mohini Girls Hostel",
+    "type": "residential",
+    "latitude": 22.123990,
+    "longitude": 82.138371,
+    "description": "Raj Mohini Girls residential hostel."
   }
 ]

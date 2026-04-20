@@ -14,16 +14,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load locations
+# Load locations fromroot
 LOCATIONS_PATH = os.path.join(os.path.dirname(__file__), "..", "locations.json")
 with open(LOCATIONS_PATH, "r") as f:
     locations = json.load(f)
 
+from typing import Optional
+
 class RouteRequest(BaseModel):
-    start_id: str
+    start_id: Optional[str] = None
     end_id: str
     # New: Add support for raw coordinates if starting from current_location
-    start_coords: list[float] = None # [lat, lng]
+    start_coords: Optional[list[float]] = None # [lat, lng]
 
 @app.get("/locations")
 async def get_locations():
@@ -58,9 +60,8 @@ async def get_route(request: RouteRequest):
             raise HTTPException(status_code=400, detail="Could not calculate road-based route")
             
         # Extract waypoints from GeoJSON
-        route_geojson = data["routes"][0]["geometry"]
-        # Convert [lng, lat] to [lat, lng] for Leaflet
-        waypoints = [[coord[1], coord[0]] for coord in route_geojson["coordinates"]]
+        # Convert [lng, lat] → [lat, lng] for Leaflet
+        waypoints = [[coord[1], coord[0]] for coord in data["routes"][0]["geometry"]["coordinates"]]
         
         return {
             "path": waypoints,
